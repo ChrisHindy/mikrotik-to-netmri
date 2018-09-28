@@ -5,7 +5,7 @@ import argparse
 import pprint
 import select
 import sys
-import ConfigParser
+import configparser
 import paramiko
 from paramiko import SSHClient
 import requests
@@ -17,18 +17,13 @@ def get_args(args=None):
                         help='IP Address of the Mikrotik device.',
                         required='True',
                         default='10.255.255.1')
-    parser.add_argument('-N', '--netmri',
-                        help='Address of the NetMRI instance.',
-                        required='True',
-                        default='netmri.lwpca.net')
 
     results = parser.parse_args(args)
-    return {'ipaddress':results.ipaddress,
-            'netmriaddr':results.netmri}
+    return {'ipaddress':results.ipaddress}
 
 def get_config():
     """Read our config file for local settings."""
-    config = ConfigParser.SafeConfigParser()
+    config = configparser.SafeConfigParser()
     config.read("mikrotik-to-netmri.conf")
     return config
 
@@ -39,7 +34,7 @@ def get_mikrotik_config(deviceip):
     # were dealing with Meraki, for example, you'd use a similar GET
     # pattern as in get_mt_device_id below, substituting the correct
     # URL and API endpoint as appropriate.
-    # 
+    #
     # You'd obviously want to wrap this part in a try...except to
     # account for the vagaries of real life.
     sshconn = SSHClient()
@@ -63,12 +58,12 @@ def get_mikrotik_config(deviceip):
     mt_config.replace(r"\r\n", "\n")
     return mt_config
 
-def get_mt_device_id(netmriaddr, config, deviceip):
+def get_mt_device_id(config, deviceip):
     """Given the device's IP address in dotted form, go ask NetMRI for the DeviceID."""
     querystring = {"op_DeviceIPDotted":"=",
                    "val_c_DeviceIPDotted":deviceip,
                    "select":"DeviceID"}
-    url = "http://" + netmriaddr + "/api/3.3/devices/find"
+    url = "http://" + config.get("netmri-creds", "host") + "/api/3.3/devices/find"
     response = requests.get(url, auth=requests.auth.HTTPBasicAuth(
         config.get("netmri-creds", "user"),
         config.get("netmri-creds", "password")),
@@ -78,14 +73,15 @@ def get_mt_device_id(netmriaddr, config, deviceip):
     # for example before just dumbly returning.
     return deviceid
 
-def put_config_to_netmri(netmriaddr, config, deviceid, running, saved):
+def put_config_to_netmri(config, deviceid, running, saved):
     """Send in the configs to NetMRI."""
     payload = {
         'DeviceID' : deviceid,
         'RunningConfig' : running,
         'SavedConfig' : saved
         }
-    url = "http://" + netmriaddr + "/api/3.3/config_revisions/import_custom_config"
+    url = "http://" + config.get("netmri-creds", "host") +\
+    "/api/3.3/config_revisions/import_custom_config"
     response = requests.post(url, auth=requests.auth.HTTPBasicAuth(
         config.get("netmri-creds", "user"),
         config.get("netmri-creds", "password")),
@@ -98,10 +94,10 @@ def main():
     config = get_config()
     ipaddress = args["ipaddress"]
     mt_config = get_mikrotik_config(ipaddress)
-    deviceid = get_mt_device_id(args["netmriaddr"], config, ipaddress)
+    deviceid = get_mt_device_id(config, ipaddress)
     # You'd send running and saved here.  Mikrotik has no concept of saved config, so we
     # just send the running config up in both cases.
-    result = put_config_to_netmri(args["netmriaddr"], config, deviceid, mt_config, mt_config)
+    result = put_config_to_netmri(config, deviceid, mt_config, mt_config)
     print(result)
 
 if __name__ == '__main__':
