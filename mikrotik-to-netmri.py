@@ -49,7 +49,8 @@ def get_mikrotik_config(deviceip):
         if ssh_stdout.channel.recv_ready():
             rl, wl, xl = select.select([ssh_stdout.channel], [], [], 0.0)
             if rl:
-                # Print data from stdout
+                # Print data from stdout...it'll come in as bytes, so
+                # decode it to UTF-8 text so it pretty-prints in NetMRI.
                 mt_config += ssh_stdout.channel.recv(1024).decode("utf-8")
     # TODO: Some exception handling is needed here for dealing with incomplete
     # returns and the like.
@@ -63,11 +64,19 @@ def get_mt_device_id(config, deviceip):
     querystring = {"op_DeviceIPDotted":"=",
                    "val_c_DeviceIPDotted":deviceip,
                    "select":"DeviceID"}
-    url = "http://" + config.get("netmri-creds", "host") + "/api/3.3/devices/find"
-    response = requests.get(url, auth=requests.auth.HTTPBasicAuth(
-        config.get("netmri-creds", "user"),
-        config.get("netmri-creds", "password")),
-                            params=querystring)
+    if config.get("netmri", "use-ssl") == "yes":
+        url = "https://" + config.get("netmri", "host") + "/api/3.3/devices/find"
+        response = requests.get(url, auth=requests.auth.HTTPBasicAuth(
+            config.get("netmri", "user"),
+            config.get("netmri", "password")),
+                            params=querystring,
+                            verify=config.get("netmri", "ca-file"))
+    else:
+        url = "http://" + config.get("netmri", "host") + "/api/3.3/devices/find"
+        response = requests.get(url, auth=requests.auth.HTTPBasicAuth(
+            config.get("netmri", "user"),
+            config.get("netmri", "password")),
+                                params=querystring)
     deviceid = response.json()["devices"][0]["DeviceID"]
     # TODO: Obviously you'll trap any bad responses, like if NetMRI doesn't know about the device 
     # for example before just dumbly returning.
@@ -80,12 +89,21 @@ def put_config_to_netmri(config, deviceid, running, saved):
         'RunningConfig' : running,
         'SavedConfig' : saved
         }
-    url = "http://" + config.get("netmri-creds", "host") +\
-    "/api/3.3/config_revisions/import_custom_config"
-    response = requests.post(url, auth=requests.auth.HTTPBasicAuth(
-        config.get("netmri-creds", "user"),
-        config.get("netmri-creds", "password")),
-                             data=payload)
+    if config.get("netmri", "use-ssl") == "yes":
+        url = "https://" + config.get("netmri", "host") +\
+        "/api/3.3/config_revisions/import_custom_config"
+        response = requests.post(url, auth=requests.auth.HTTPBasicAuth(
+            config.get("netmri", "user"),
+            config.get("netmri", "password")),
+                                 data=payload,
+                                 verify=config.get("netmri", "ca-file"))
+    else:
+        url = "http://" + config.get("netmri", "host") +\
+        "/api/3.3/config_revisions/import_custom_config"
+        response = requests.post(url, auth=requests.auth.HTTPBasicAuth(
+            config.get("netmri", "user"),
+            config.get("netmri", "password")),
+                                 data=payload)
     return response.status_code
 
 def main():
@@ -95,9 +113,14 @@ def main():
     ipaddress = args["ipaddress"]
     mt_config = get_mikrotik_config(ipaddress)
     deviceid = get_mt_device_id(config, ipaddress)
-    # You'd send running and saved here.  Mikrotik has no concept of saved config, so we
-    # just send the running config up in both cases.
+    # You'd send running and saved here if the device supports it.  
+    # Mikrotik has no concept of saved config, so we just send the running config up 
+    # in both cases.
     result = put_config_to_netmri(config, deviceid, mt_config, mt_config)
+    if result == 200:
+        print("Uploaded config for %s to NetMRI." %(ipaddress))
+    else:
+        print("Error uploading config to NetMRI: %s")
     print(result)
 
 if __name__ == '__main__':
