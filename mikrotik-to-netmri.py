@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Get config from a Mikrotik over SSH and put it into NetMRI."""
 
+# Author: Chris Hindy (chindy@empowerednetworks.com)
+# Copyright (c) 2018, Empowered Networks Inc. We provide this AS-IS with NO WARRANTY.
+
 import argparse
-import pprint
 import select
-import sys
 import configparser
 import paramiko
 from paramiko import SSHClient
@@ -12,7 +13,9 @@ import requests
 
 def get_args(args=None):
     """Deal with command line arguments."""
-    parser = argparse.ArgumentParser(description='Get config from a Mikrotik over SSH and put it into NetMRI.')
+    parser = argparse.ArgumentParser(
+        description='Get config from a Mikrotik over SSH and put it into NetMRI.'
+        )
     parser.add_argument('-I', '--ipaddress',
                         help='IP Address of the Mikrotik device.',
                         required='True',
@@ -47,8 +50,8 @@ def get_mikrotik_config(deviceip):
     while not ssh_stdout.channel.exit_status_ready():
     # Only print data if there is data to read in the channel
         if ssh_stdout.channel.recv_ready():
-            rl, wl, xl = select.select([ssh_stdout.channel], [], [], 0.0)
-            if rl:
+            rlist, wlist, xlist = select.select([ssh_stdout.channel], [], [], 0.0)
+            if rlist:
                 # Print data from stdout...it'll come in as bytes, so
                 # decode it to UTF-8 text so it pretty-prints in NetMRI.
                 mt_config += ssh_stdout.channel.recv(1024).decode("utf-8")
@@ -69,8 +72,8 @@ def get_mt_device_id(config, deviceip):
         response = requests.get(url, auth=requests.auth.HTTPBasicAuth(
             config.get("netmri", "user"),
             config.get("netmri", "password")),
-                            params=querystring,
-                            verify=config.get("netmri", "ca-file"))
+                                params=querystring,
+                                verify=config.get("netmri", "ca-file"))
     else:
         url = "http://" + config.get("netmri", "host") + "/api/3.3/devices/find"
         response = requests.get(url, auth=requests.auth.HTTPBasicAuth(
@@ -113,8 +116,8 @@ def main():
     ipaddress = args["ipaddress"]
     mt_config = get_mikrotik_config(ipaddress)
     deviceid = get_mt_device_id(config, ipaddress)
-    # You'd send running and saved here if the device supports it.  
-    # Mikrotik has no concept of saved config, so we just send the running config up 
+    # You'd send running and saved here if the device supports it.
+    # Mikrotik has no concept of saved config, so we just send the running config up
     # in both cases.
     result = put_config_to_netmri(config, deviceid, mt_config, mt_config)
     if result == 200:
