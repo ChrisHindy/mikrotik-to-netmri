@@ -8,7 +8,7 @@ config into NetMRI's Config Archive.
 Usage:
 ======
 
-# mikrotik-to-netmri.py -I <ip address of Mikrotik device> -N <name or ip address of the NetMRI instance>
+# mikrotik-to-netmri.py -I [ip address of Mikrotik device]
 
 Configuration:
 ==============
