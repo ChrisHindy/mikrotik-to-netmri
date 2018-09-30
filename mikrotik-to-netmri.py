@@ -5,9 +5,9 @@
 # Copyright (c) 2018, Empowered Networks Inc. We provide this AS-IS with NO WARRANTY.
 
 import argparse
+import configparser
 import select
 import sys
-import configparser
 import paramiko
 from paramiko import SSHClient
 import requests
@@ -21,14 +21,21 @@ def get_args(args=None):
     parser.add_argument('-I', '--ipaddress',
                         help='IP Address of the target device.',
                         required='True')
+    parser.add_argument('-c', '--configfile',
+                        help="/path/to/configfile",
+                        default="mikrotik-to-netmri.conf")
 
     results = parser.parse_args(args)
-    return {'ipaddress':results.ipaddress}
+    print(results.configfile)
+    return {
+        'ipaddress':results.ipaddress,
+        'configfile':results.configfile
+        }
 
-def get_config():
+def get_config(configfile):
     """Read our config file for local settings."""
     config = configparser.SafeConfigParser()
-    config.read("mikrotik-to-netmri.conf")
+    config.read(configfile)
     return config
 
 def netmri_api_get(config, uri, payload):
@@ -152,7 +159,7 @@ def get_device_config(config, deviceip):
 def main():
     """Start the main loop."""
     args = get_args()
-    config = get_config()
+    config = get_config(args["configfile"])
     ipaddress = args["ipaddress"]
     # Check if NetMRI knows about the target device.
     deviceid = get_device_id(config, ipaddress)
