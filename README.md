@@ -1,5 +1,5 @@
 # mikrotik-to-netmri
-Collects configuration from a Mikrotik device and stores it in Infoblox NetMRI (7.3.1++)
+Collects configuration from a [Mikrotik](https://mikrotik.com/ "Mikrotik Routers and Wireless") device and stores it in [Infoblox NetMRI](https://www.infoblox.com/products/netmri/ "Infoblox|NetMRI") (7.3.1++)
 
 This is an example script to demonstrate the use of Infoblox's new "import_custom_config" API in NetMRI v7.3.1 and up,
 It connects to a Mikrotik network device, collects the current configuration from it and publishes that 
