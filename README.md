@@ -6,9 +6,15 @@ It connects to a Mikrotik network device, collects the current configuration fro
 config into NetMRI's Config Archive.
 
 Usage:
-======
 
-# mikrotik-to-netmri.py -I [ip address of Mikrotik device]
+`# mikrotik-to-netmri.py -I [ip address of Mikrotik device]`
+
+Pre-requisites:
+===============
+
+- Python 3
+- paramiko
+- requests
 
 Configuration:
 ==============
